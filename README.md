@@ -217,3 +217,203 @@ SELECT
   u.avatar_url AS seller_avatar
 FROM listings l
 JOIN users u ON l.user_id = u.id;
+
+### Get Matches with Listing Details
+
+```sql
+SELECT 
+  m.*,
+  ml.title, ml.price, ml.location, ml.image_url,
+  u.full_name, u.seller_rating, u.is_verified
+FROM listing_matches m
+JOIN listings ml ON m.matched_listing_id = ml.id
+JOIN users u ON ml.user_id = u.id;
+```
+
+### Get FAQs with Nested Replies
+
+```sql
+WITH RECURSIVE faq_tree AS (
+  SELECT f.*, a.* FROM listing_faqs f
+  LEFT JOIN faq_answers a ON f.id = a.faq_id
+  -- ... recursive logic
+);
+```
+
+### Get Conversation Messages
+
+```sql
+SELECT 
+  m.*,
+  u.full_name, u.avatar_url, u.is_verified
+FROM messages m
+JOIN users u ON (m.sender_id = u.id OR m.recipient_id = u.id)
+WHERE m.sender_id = ? OR m.recipient_id = ?;
+```
+
+### Get AI Chat History
+
+```sql
+SELECT 
+  s.id, s.title,
+  array_agg(m.*) AS messages
+FROM ai_chat_sessions s
+LEFT JOIN ai_chat_messages m ON s.id = m.session_id
+GROUP BY s.id;
+```
+
+## 🌐 API Endpoints
+
+### Users
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/users/me` | Get current user profile |
+| `GET` | `/api/users/:id` | Get user by ID |
+| `PATCH` | `/api/users/me` | Update current user profile |
+
+### Threads
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/threads` | Get all threads |
+| `GET` | `/api/threads/:id` | Get thread by ID |
+| `GET` | `/api/threads/:id/stats` | Get thread statistics |
+
+### Listings
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/listings` | Get all listings |
+| `GET` | `/api/listings/:id` | Get listing by ID |
+| `POST` | `/api/listings` | Create new listing |
+| `PATCH` | `/api/listings/:id` | Update listing |
+| `DELETE` | `/api/listings/:id` | Delete listing |
+| `GET` | `/api/threads/:threadId/listings` | Get listings by thread |
+
+### Matches
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/listings/:id/matches` | Get matches for listing |
+| `POST` | `/api/matches/generate` | Generate new matches |
+| `PATCH` | `/api/matches/:id` | Update match |
+
+### FAQs
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/listings/:id/faqs` | Get FAQs for listing |
+| `POST` | `/api/listings/:id/faqs` | Create FAQ |
+| `POST` | `/api/faqs/:id/answers` | Add answer to FAQ |
+| `POST` | `/api/answers/:id/replies` | Reply to answer |
+| `PATCH` | `/api/answers/:id/vote` | Vote on answer |
+
+### Messages
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/messages` | Get all messages |
+| `GET` | `/api/messages/conversation/:userId` | Get conversation with user |
+| `POST` | `/api/messages` | Send message |
+| `PATCH` | `/api/messages/:id/read` | Mark message as read |
+
+### AI Chat
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/ai/sessions` | Get all AI chat sessions |
+| `GET` | `/api/ai/sessions/:id` | Get session by ID |
+| `POST` | `/api/ai/chat` | Send AI chat message |
+| `DELETE` | `/api/ai/sessions/:id` | Delete session |
+
+### Activities
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/users/me/activities` | Get user activities |
+
+### Achievements
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/users/me/achievements` | Get user achievements |
+| `PATCH` | `/api/achievements/:id/unlock` | Unlock achievement |
+
+## 🗂️ File Structure
+
+### Pages (Routes)
+
+```
+/app
+├── threads
+│   ├── page.tsx
+│   ├── [threadCategory]
+│   │   └── page.tsx
+│   └── [...]/[listingId]
+│       ├── page.tsx
+│       └── faq
+│           └── page.tsx
+├── listings
+│   ├── page.tsx
+│   └── [listingId]/matches
+│       └── page.tsx
+├── messages
+│   └── page.tsx
+├── chat/history
+│   └── page.tsx
+└── profile
+    ├── page.tsx
+    └── activity
+        └── page.tsx
+```
+
+### Components (UI)
+
+```
+/components
+├── threads/
+├── matching/
+├── messages/
+├── sidebar/
+└── threads/product-faq/
+```
+
+### Utils (Mock Data)
+
+```
+/utils
+├── mock-user-data.ts
+├── mock-threads-data.ts
+├── mock-listings-data.ts
+├── mock-match-data.ts
+├── mock-threads-faq-data.ts
+├── mock-messages.ts
+├── mock-search-history.ts
+├── mock-activity-data.ts
+└── mock-achievements-data.ts
+```
+
+## 📋 Data Structure Summary
+
+| Table | Primary Files | Component Count |
+|-------|---------------|-----------------|
+| **users** | `mock-user-data.ts`, `profile/page.tsx`, `Header.tsx` | 6 |
+| **threads** | `mock-threads-data.ts`, `threads/page.tsx`, `ThreadCard.tsx` | 7 |
+| **listings** | `mock-listings-data.ts`, `listings/page.tsx`, `ProductDetails.tsx` | 15+ |
+| **listing_matches** | `mock-match-data.ts`, `AIMatchingContainer.tsx` | 9 |
+| **listing_faqs** | `mock-threads-faq-data.ts`, `faq/page.tsx` | 6 |
+| **faq_answers** | `mock-threads-faq-data.ts`, `Answer.tsx` | 3 |
+| **messages** | `mock-messages.ts`, `messages/page.tsx`, `ChatWindow.tsx` | 7 |
+| **ai_chat_sessions** | `mock-search-history.ts`, `chat/history/page.tsx` | 4 |
+| **ai_chat_messages** | `mock-search-history.ts`, `ChatHistoryPage.tsx` | 4 |
+| **activities** | `mock-activity-data.ts`, `profile/activity/page.tsx` | 2 |
+| **achievements** | `mock-achievements-data.ts`, `profile/page.tsx` | 2 |
+
+---
+
+ 
+
+
+
+
