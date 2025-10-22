@@ -1,156 +1,437 @@
-# Ngam-Je Database Schema Documentation (v-2)
-## Marketplace Platform - Table Descriptions
-Schema: 
+# Ngam-Je Database Schema Documentation (v-4)
+## Marketplace Platform - Table Descriptions Based on FrontEnd
 
----
 
-## 📊 Core Tables
+📊 Data Flow Summary:
+User Journey Flow:
+Browse Threads → User sees communities/categories
+View Listings → User clicks thread, sees items for sale/wanted
+AI Matching → System generates matches based on compatibility
+View Matches → User sees recommended listings
+Contact Seller → User sends message
+Ask Questions → User posts FAQ on listing
+AI Chat → User asks AI for help finding items
+Track Activity → System logs user actions
+Earn Achievements → System unlocks badges
+Key Database Interactions:
+✅ READ operations: Browse, search, view matches
+✅ WRITE operations: Create listings, send messages, post FAQs
+✅ UPDATE operations: Mark messages as read, update stats
+✅ JOIN operations: Get listings with user info, matches with details
+✅ AGGREGATE operations: Count views, calculate ratings, stats
 
-### **users**
-Stores all user account information including profile details, verification status, token balance, and seller ratings. This is the central table that connects to almost all other tables in the system.
+-- ============================================
+-- DATABASE TABLE TO FRONTEND FILE MAPPING
+-- Shows which files interact with each table
+-- ============================================
 
-**Key Fields:** email, username, is_verified, tokens_balance, seller_rating, total_sales
+-- ============================================
+-- TABLE: users
+-- ============================================
+-- USED BY:
+-- ✓ frontend/src/utils/mock-user-data.ts
+-- ✓ frontend/src/app/profile/page.tsx
+-- ✓ frontend/src/components/layout/Header.tsx
+-- ✓ frontend/src/components/layout/Sidebar.tsx
+-- ✓ frontend/src/lib/auth/AuthContext.tsx
+-- ✓ frontend/src/lib/auth/providers/MockAuthProvider.tsx
 
----
+-- FIELDS MAPPED:
+-- id → User.id
+-- full_name → User.name
+-- email → User.email
+-- avatar_url → User.avatar
+-- is_verified → User.verified
+-- seller_rating → User.rating
+-- rating_count → User.ratingCount
+-- total_listings → User.totalListings
+-- completed_deals → User.completedDeals
+-- created_at → User.joinedDate
 
-### **threads**
-Represents discussion/marketplace threads (e.g., "Pre-loved Apple", "Nintendo Lovers"). Each thread acts as a container for related listings and has its own boost level determined by community contributions.
+-- ============================================
+-- TABLE: threads
+-- ============================================
+-- USED BY:
+-- ✓ frontend/src/utils/mock-threads-data.ts
+-- ✓ frontend/src/app/threads/page.tsx
+-- ✓ frontend/src/app/threads/[threadCategory]/page.tsx
+-- ✓ frontend/src/components/threads/ThreadCard.tsx
+-- ✓ frontend/src/components/threads/ThreadsGrid.tsx
+-- ✓ frontend/src/components/threads/NgamOverview.tsx
+-- ✓ frontend/src/components/threads/PageHeader.tsx
 
-**Key Fields:** id, title, category, boost_level, boost_points, is_hot, is_pinned
+-- FIELDS MAPPED:
+-- id → ThreadData.id
+-- title → ThreadData.title
+-- description → ThreadData.description
+-- image_url → ThreadData.imageUrl
+-- category → ThreadData.category
+-- tags → ThreadData.tags
+-- comments_count → ThreadData.comments
+-- views_count → ThreadData.views
+-- upvotes_count → ThreadData.upvotes
+-- current_tokens → ThreadData.currentTokens
+-- goal_tokens → ThreadData.goalTokens
+-- contributions_count → ThreadData.contributions
+-- is_pinned → ThreadData.isPinned
+-- is_hot → ThreadData.isHot
+-- time_ago → ThreadData.timeAgo
+-- online_users → ThreadData.onlineUsers
+-- total_users → ThreadData.totalUsers
 
----
+-- ============================================
+-- TABLE: listings
+-- ============================================
+-- USED BY:
+-- ✓ frontend/src/utils/mock-listings-data.ts
+-- ✓ frontend/src/utils/mock-threads-data.ts (ProductListingData)
+-- ✓ frontend/src/app/listings/page.tsx
+-- ✓ frontend/src/app/create-listing/page.tsx
+-- ✓ frontend/src/app/threads/[threadCategory]/page.tsx
+-- ✓ frontend/src/app/threads/[threadCategory]/[listingId]/page.tsx
+-- ✓ frontend/src/components/threads/category/ListingCard.tsx
+-- ✓ frontend/src/components/threads/product/ProductDetails.tsx
+-- ✓ frontend/src/components/threads/product/ProductDetailsTop.tsx
+-- ✓ frontend/src/components/threads/product/ProductDetailsMiddle.tsx
+-- ✓ frontend/src/components/threads/product/ProductDetailsBottom.tsx
+-- ✓ frontend/src/components/threads/product/ProductHeader.tsx
+-- ✓ frontend/src/components/sidebar/menu-items/BuyListingsMenuItem.tsx
+-- ✓ frontend/src/components/sidebar/menu-items/SellListingsMenuItem.tsx
+-- ✓ frontend/src/components/sidebar/menu-items/MatchedListingsMenuItem.tsx
 
-### **listings**
-Individual marketplace items posted by users. Can be either "for-sale" or "want-to-buy" (WTB). Each listing belongs to a thread and has an expiration date that can be extended based on thread boost level.
+-- FIELDS MAPPED:
+-- id → Listing.id
+-- title → Listing.title
+-- description → Listing.description
+-- price → Listing.price (for sale listings)
+-- budget → Listing.budget (for wanted listings)
+-- location → Listing.location
+-- timestamp → Listing.timestamp
+-- image_url → Listing.imageUrl
+-- views_count → Listing.views
+-- likes_count → Listing.likes
+-- category → Listing.category
+-- expires_at → Listing.expiresAt
+-- subscription_tier → Listing.subscriptionTier
+-- user_id (joined) → isOwner flag
 
-**Key Fields:** id, user_id, thread_id, listing_type, price, status, expires_at
+-- ============================================
+-- TABLE: listing_matches
+-- ============================================
+-- USED BY:
+-- ✓ frontend/src/utils/mock-match-data.ts
+-- ✓ frontend/src/utils/mock-ai-matching-data.ts
+-- ✓ frontend/src/app/listings/[listingId]/matches/page.tsx
+-- ✓ frontend/src/components/matching/AIMatchingContainer.tsx
+-- ✓ frontend/src/components/matching/desktop/AIMatchingKanban.tsx
+-- ✓ frontend/src/components/matching/mobile/AIMatchingSwipe.tsx
+-- ✓ frontend/src/components/matching/shared/MatchCard.tsx
+-- ✓ frontend/src/components/matching/shared/useMatchingLogic.ts
+-- ✓ frontend/src/components/matching/ListingComparisonModal.tsx
 
----
+-- FIELDS MAPPED:
+-- id → ListingMatch.id
+-- source_listing_id → ListingMatch.yourListingId
+-- matched_listing_id → ListingMatch.matchedListing (joined)
+-- match_score → ListingMatch.matchScore
+-- match_quality → ListingMatch.matchQuality
+-- match_reasons → ListingMatch.matchReasons (JSONB array)
+-- distance → ListingMatch.distance
+-- status → ListingMatch.status
+-- price_compatible → ListingMatch.compatibility.priceMatch
+-- location_compatible → ListingMatch.compatibility.locationMatch
+-- category_compatible → ListingMatch.compatibility.categoryMatch
+-- created_at → ListingMatch.createdAt
 
-## 🔗 Relationship Tables
+-- ============================================
+-- TABLE: listing_faqs
+-- ============================================
+-- USED BY:
+-- ✓ frontend/src/utils/mock-threads-faq-data.ts
+-- ✓ frontend/src/app/threads/[threadCategory]/[listingId]/faq/page.tsx
+-- ✓ frontend/src/components/threads/product/ProductFAQSummary.tsx
+-- ✓ frontend/src/components/threads/product-faq/Question.tsx
+-- ✓ frontend/src/components/threads/product-faq/Answer.tsx
+-- ✓ frontend/src/components/threads/product-faq/AISummary.tsx
 
-### **thread_members**
-Tracks which users have joined which threads. Users must join a thread to participate in it (create listings, view matches, etc.).
+-- FIELDS MAPPED:
+-- id → Question.id
+-- question → Question.question
+-- description → Question.description
+-- is_answered_by_poster → Question.isAnsweredByPoster
 
-**Key Fields:** user_id, thread_id, joined_at, is_favorite
+-- ============================================
+-- TABLE: faq_answers
+-- ============================================
+-- USED BY:
+-- ✓ frontend/src/utils/mock-threads-faq-data.ts
+-- ✓ frontend/src/app/threads/[threadCategory]/[listingId]/faq/page.tsx
+-- ✓ frontend/src/components/threads/product-faq/Answer.tsx
 
----
+-- FIELDS MAPPED:
+-- id → Answer.id / Reply.id
+-- user_name → Answer.user / Reply.user
+-- text → Answer.text / Reply.text
+-- is_accepted → Answer.isAccepted
+-- likes_count → Answer.likes / Reply.likes
+-- dislikes_count → Answer.dislikes / Reply.dislikes
+-- parent_answer_id → determines if it's a reply (nested)
 
-### **listing_matches**
-AI-generated matches between compatible listings (e.g., a WTB listing matched with a for-sale listing). Each match has a score (0-100) and quality rating (excellent/good/possible).
+-- ============================================
+-- TABLE: messages
+-- ============================================
+-- USED BY:
+-- ✓ frontend/src/utils/mock-messages.ts
+-- ✓ frontend/src/app/messages/page.tsx
+-- ✓ frontend/src/components/messages/ChatWindow.tsx
+-- ✓ frontend/src/components/messages/ChatInput.tsx
+-- ✓ frontend/src/components/messages/ConversationList.tsx
+-- ✓ frontend/src/components/messages/ConversationItem.tsx
+-- ✓ frontend/src/components/messages/MessageBubble.tsx
 
-**Key Fields:** source_listing_id, matched_listing_id, match_score, match_quality, status
+-- FIELDS MAPPED:
+-- id → MessagePreview.id / ConversationMessage.id
+-- sender_id → ConversationMessage.sender (with logic "me" vs "them")
+-- recipient_id → used to filter conversations
+-- content → MessagePreview.message / ConversationMessage.content
+-- is_read → determines unread count
+-- product_info → MessagePreview.product / ConversationMessage.product (JSONB)
+-- created_at → MessagePreview.time / ConversationMessage.timestamp
 
----
+-- ============================================
+-- TABLE: ai_chat_sessions
+-- ============================================
+-- USED BY:
+-- ✓ frontend/src/utils/mock-search-history.ts
+-- ✓ frontend/src/app/chat/history/page.tsx
+-- ✓ frontend/src/components/sidebar/SidebarAIChat.tsx
+-- ✓ frontend/src/components/sidebar/SearchHistory.tsx
+-- ✓ frontend/src/components/sidebar/ChatHistoryPage.tsx
 
-### **mutual_matches**
-Created when both buyer and seller show interest in each other's listings. Represents an active connection between two users ready to negotiate.
+-- FIELDS MAPPED:
+-- id → ChatHistoryItem.id / SearchSuggestion.id
+-- title → ChatHistoryItem.title / SearchSuggestion.title
+-- created_at → ChatHistoryItem.created_at
+-- (calculated) timestamp → ChatHistoryItem.timestamp ("2 hours ago")
 
-**Key Fields:** buyer_listing_id, seller_listing_id, buyer_user_id, seller_user_id, is_mutual, status
+-- ============================================
+-- TABLE: ai_chat_messages
+-- ============================================
+-- USED BY:
+-- ✓ frontend/src/utils/mock-search-history.ts
+-- ✓ frontend/src/app/chat/history/page.tsx
+-- ✓ frontend/src/components/sidebar/SidebarAIChat.tsx
+-- ✓ frontend/src/components/sidebar/ChatHistoryPage.tsx
 
----
+-- FIELDS MAPPED:
+-- id → Message.id
+-- role → Message.role
+-- content → Message.content
+-- tool_calls → Message.toolCalls (JSONB array)
+-- timestamp → Message.timestamp
 
-### **match_interactions**
-Tracks user actions on listing matches (viewed, interested, contacted, dismissed, reported). Used for analytics and to prevent showing the same match repeatedly.
+-- ============================================
+-- TABLE: activities
+-- ============================================
+-- USED BY:
+-- ✓ frontend/src/utils/mock-activity-data.ts
+-- ✓ frontend/src/app/profile/activity/page.tsx
 
-**Key Fields:** user_id, match_id, action_type, metadata
+-- FIELDS MAPPED:
+-- activity_type → Activity.type
+-- message → Activity.message
+-- date → Activity.date
 
----
+-- ============================================
+-- TABLE: achievements
+-- ============================================
+-- USED BY:
+-- ✓ frontend/src/utils/mock-achievements-data.ts
+-- ✓ frontend/src/app/profile/page.tsx
 
-## 💬 Communication Tables
+-- FIELDS MAPPED:
+-- id → Achievement.id
+-- label → Achievement.label
+-- description → Achievement.description
+-- icon → Achievement.icon
+-- unlocked → Achievement.unlocked
+-- unlocked_at → Achievement.unlockedAt
 
-### **messages**
-Direct messages between users. Can be linked to a specific listing or mutual match for context. Used for negotiations and deal-making.
+-- ============================================
+-- CROSS-TABLE QUERIES (Multiple files)
+-- ============================================
 
-**Key Fields:** sender_id, recipient_id, listing_id, mutual_match_id, content, is_read
+-- QUERY: Get listings with owner info
+-- USED BY: Most listing display components
+SELECT 
+  l.*,
+  u.full_name as seller_name,
+  u.seller_rating,
+  u.is_verified as seller_verified,
+  u.avatar_url as seller_avatar
+FROM listings l
+JOIN users u ON l.user_id = u.id;
+-- FILES:
+-- ✓ frontend/src/app/threads/[threadCategory]/page.tsx
+-- ✓ frontend/src/components/threads/category/ListingCard.tsx
+-- ✓ frontend/src/components/threads/product/ProductDetailsTop.tsx
 
----
+-- QUERY: Get matches with listing details
+-- USED BY: Matching system components
+SELECT 
+  m.*,
+  ml.title, ml.price, ml.location, ml.image_url,
+  u.full_name, u.seller_rating, u.is_verified
+FROM listing_matches m
+JOIN listings ml ON m.matched_listing_id = ml.id
+JOIN users u ON ml.user_id = u.id;
+-- FILES:
+-- ✓ frontend/src/components/matching/AIMatchingContainer.tsx
+-- ✓ frontend/src/components/matching/desktop/AIMatchingKanban.tsx
+-- ✓ frontend/src/components/matching/mobile/AIMatchingSwipe.tsx
+-- ✓ frontend/src/components/matching/shared/MatchCard.tsx
 
-### **listing_faqs**
-Public Q&A on listings. Users can ask questions, sellers can answer, and others can reply. Supports threaded conversations with parent-child relationships.
+-- QUERY: Get FAQs with nested replies
+-- USED BY: FAQ display components
+WITH RECURSIVE faq_tree AS (
+  SELECT f.*, a.* FROM listing_faqs f
+  LEFT JOIN faq_answers a ON f.id = a.faq_id
+  -- ... recursive logic
+);
+-- FILES:
+-- ✓ frontend/src/app/threads/[threadCategory]/[listingId]/faq/page.tsx
+-- ✓ frontend/src/components/threads/product-faq/Question.tsx
+-- ✓ frontend/src/components/threads/product-faq/Answer.tsx
 
-**Key Fields:** listing_id, user_id, parent_id, type (question/answer/reply), is_accepted
+-- QUERY: Get conversation messages
+-- USED BY: Messaging components
+SELECT 
+  m.*,
+  u.full_name, u.avatar_url, u.is_verified
+FROM messages m
+JOIN users u ON (m.sender_id = u.id OR m.recipient_id = u.id)
+WHERE m.sender_id = ? OR m.recipient_id = ?;
+-- FILES:
+-- ✓ frontend/src/app/messages/page.tsx
+-- ✓ frontend/src/components/messages/ChatWindow.tsx
+-- ✓ frontend/src/components/messages/ConversationList.tsx
 
----
+-- QUERY: Get AI chat history
+-- USED BY: AI chat components
+SELECT 
+  s.id, s.title,
+  array_agg(m.*) as messages
+FROM ai_chat_sessions s
+LEFT JOIN ai_chat_messages m ON s.id = m.session_id
+GROUP BY s.id;
+-- FILES:
+-- ✓ frontend/src/app/chat/history/page.tsx
+-- ✓ frontend/src/components/sidebar/SidebarAIChat.tsx
+-- ✓ frontend/src/components/sidebar/ChatHistoryPage.tsx
 
-## 🤖 AI Tables
+-- ============================================
+-- API ENDPOINT SUGGESTIONS
+-- ============================================
 
-### **ai_chat_sessions**
-Represents a conversation session between a user and the AI assistant. Each session has a mode (reactive/proactive) and can span multiple messages.
+/*
+Based on the file usage, here are the API endpoints you'll need:
 
-**Key Fields:** user_id, title, mode, created_at
+USERS:
+  GET    /api/users/me                          → Get current user profile
+  GET    /api/users/:id                         → Get user by ID
+  PATCH  /api/users/me                          → Update user profile
+  
+THREADS:
+  GET    /api/threads                           → List all threads/communities
+  GET    /api/threads/:id                       → Get thread details
+  GET    /api/threads/:id/stats                 → Get thread statistics
+  
+LISTINGS:
+  GET    /api/listings                          → List all listings (with filters)
+  GET    /api/listings/:id                      → Get listing details
+  POST   /api/listings                          → Create new listing
+  PATCH  /api/listings/:id                      → Update listing
+  DELETE /api/listings/:id                      → Delete listing
+  GET    /api/threads/:threadId/listings        → Get listings in thread
+  
+MATCHES:
+  GET    /api/listings/:id/matches              → Get matches for listing
+  POST   /api/matches/generate                  → Generate AI matches
+  PATCH  /api/matches/:id                       → Update match status
+  
+FAQS:
+  GET    /api/listings/:id/faqs                 → Get FAQs for listing
+  POST   /api/listings/:id/faqs                 → Create new question
+  POST   /api/faqs/:id/answers                  → Answer a question
+  POST   /api/answers/:id/replies               → Reply to an answer
+  PATCH  /api/answers/:id/vote                  → Vote on answer (like/dislike)
+  
+MESSAGES:
+  GET    /api/messages                          → Get all conversations
+  GET    /api/messages/conversation/:userId     → Get conversation with user
+  POST   /api/messages                          → Send new message
+  PATCH  /api/messages/:id/read                 → Mark message as read
+  
+AI CHAT:
+  GET    /api/ai/sessions                       → Get chat history
+  GET    /api/ai/sessions/:id                   → Get session messages
+  POST   /api/ai/chat                           → Send message to AI
+  DELETE /api/ai/sessions/:id                   → Delete chat session
+  
+ACTIVITIES:
+  GET    /api/users/me/activities               → Get user activity feed
+  
+ACHIEVEMENTS:
+  GET    /api/users/me/achievements             → Get user achievements
+  PATCH  /api/achievements/:id/unlock           → Unlock achievement
+*/
 
----
+-- ============================================
+-- FILE STRUCTURE SUMMARY
+-- ============================================
 
-### **ai_chat_messages**
-Individual messages within an AI chat session. Stores both user messages and AI responses, along with metadata about tool usage.
+/*
+PAGES (Route Handlers):
+├── /app/threads/page.tsx                      → threads table
+├── /app/threads/[threadCategory]/page.tsx     → threads, listings tables
+├── /app/threads/.../[listingId]/page.tsx      → listings, users tables
+├── /app/threads/.../faq/page.tsx              → listing_faqs, faq_answers tables
+├── /app/listings/page.tsx                     → listings, users tables
+├── /app/listings/[listingId]/matches/page.tsx → listing_matches table
+├── /app/messages/page.tsx                     → messages table
+├── /app/chat/history/page.tsx                 → ai_chat_sessions, ai_chat_messages
+├── /app/profile/page.tsx                      → users, achievements tables
+└── /app/profile/activity/page.tsx             → activities table
 
-**Key Fields:** session_id, role (user/assistant), content, tool_calls, tool_results
+COMPONENTS (Reusable UI):
+├── /components/threads/*                      → threads, listings tables
+├── /components/matching/*                     → listing_matches table
+├── /components/messages/*                     → messages table
+├── /components/sidebar/*                      → ai_chat_sessions, listings tables
+└── /components/threads/product-faq/*          → listing_faqs, faq_answers tables
 
----
-
-### **ai_actions**
-Logs specific actions taken by the AI on behalf of users (e.g., searching listings, sending messages, setting reminders). Tracks execution status and results.
-
-**Key Fields:** session_id, message_id, action_type, action_input, action_output, status
-
----
-
-## 🚀 Boost System Tables
-
-### **boost_levels_config**
-Defines the boost tier system (Bronze/Silver/Gold). Each level requires a certain number of boost points and grants specific perks like extended listing duration.
-
-**Key Fields:** level, points_required, perks_granted (JSON), description
-
----
-
-### **thread_boost_contributions**
-Records individual user contributions (tokens) to boost a thread. Aggregate contributions determine the thread's boost level.
-
-**Key Fields:** user_id, thread_id, amount, contributed_at
-
----
-
-## 🔄 Data Flow Summary
-
-**User Journey:**
-1. User joins thread → `thread_members`
-2. User creates listing → `listings`
-3. AI finds matches → `listing_matches`
-4. User views match → `match_interactions`
-5. Both users interested → `mutual_matches`
-6. Users message each other → `messages`
-7. Public asks questions → `listing_faqs`
-8. User uses AI help → `ai_chat_sessions` → `ai_chat_messages` → `ai_actions`
-9. User boosts thread → `thread_boost_contributions` → updates `threads.boost_level`
-
----
-
-## 📈 Key Metrics Tracked
-
-- **User Engagement:** thread joins, listing views, match interactions
-- **Marketplace Activity:** active listings, successful matches, message volume
-- **AI Usage:** session count, action completion rate, user satisfaction
-- **Community Health:** boost contributions, FAQ participation, response times
-- **Transaction Success:** mutual matches, deal completion rate
-
----
-
-## 🔐 Important Notes
-
-### Foreign Key Relationships
-- All user-related tables CASCADE on user deletion
-- Listing deletions SET NULL on messages (preserves history)
-- Thread deletions CASCADE through all related data
-
-### Indexes
-Every table has performance indexes on:
-- Foreign keys (user_id, thread_id, listing_id)
-- Frequently queried fields (status, created_at, expires_at)
-- Search fields (match_score, price, category)
-
-### Data Retention
-- Expired listings remain in DB with status='expired'
-- Completed matches stay for analytics (status='deal_made')
-- AI chat history retained for context and learning
+UTILS (Mock Data - Replace with API calls):
+├── /utils/mock-user-data.ts                   → users table
+├── /utils/mock-threads-data.ts                → threads, listings tables
+├── /utils/mock-listings-data.ts               → listings table
+├── /utils/mock-match-data.ts                  → listing_matches table
+├── /utils/mock-threads-faq-data.ts            → listing_faqs, faq_answers tables
+├── /utils/mock-messages.ts                    → messages table
+├── /utils/mock-search-history.ts              → ai_chat_sessions, ai_chat_messages
+├── /utils/mock-activity-data.ts               → activities table
+└── /utils/mock-achievements-data.ts           → achievements table
+*/
+📋 Summary Table:
+Table	Primary Files	Component Count
+users	mock-user-data.ts, profile/page.tsx, Header.tsx	6 files
+threads	mock-threads-data.ts, threads/page.tsx, ThreadCard.tsx	7 files
+listings	mock-listings-data.ts, listings/page.tsx, ProductDetails.tsx	15+ files
+listing_matches	mock-match-data.ts, AIMatchingContainer.tsx	9 files
+listing_faqs	mock-threads-faq-data.ts, faq/page.tsx	6 files
+faq_answers	mock-threads-faq-data.ts, Answer.tsx	3 files
+messages	mock-messages.ts, messages/page.tsx, ChatWindow.tsx	7 files
+ai_chat_sessions	mock-search-history.ts, chat/history/page.tsx	4 files
+ai_chat_messages	mock-search-history.ts, ChatHistoryPage.tsx	4 files
+activities	mock-activity-data.ts, profile/activity/page.tsx	2 files
+achievements	mock-achievements-data.ts, profile/page.tsx	2 files
+This mapping shows exactly which files need to be updated when you replace mock data with real API calls!
