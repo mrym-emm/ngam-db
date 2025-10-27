@@ -88,12 +88,12 @@ INSERT INTO activities (user_id, activity_type, title, description, related_list
 
 -- ============================================
 
--- FAQs (Complete - 4 FAQs)
-INSERT INTO faqs (category, question, answer, order_index) VALUES
-('Getting Started', 'How do I create my first listing?', 'Click on the "Create Listing" button in the sidebar, fill out the form with your item details, and submit!', 1),
-('Getting Started', 'What is the difference between buy and sell listings?', 'Sell listings are items you want to sell. Buy listings are requests for items you want to purchase. Our smart matching system connects compatible listings!', 2),
-('Safety', 'How do I stay safe when meeting buyers/sellers?', 'Always meet in public places, bring a friend, and trust your instincts. Never share personal financial information.', 3),
-('Payments', 'How does payment work?', 'NGAM-JE currently facilitates connections. Payment arrangements are made directly between buyers and sellers. We recommend secure payment methods.', 4);
+-- FAQs (Item-Specific - Sample data)
+INSERT INTO faqs (listing_id, user_id, question, answer, is_answered, asked_at, answered_at) VALUES
+(1, 'user-2', 'Does the iPhone come with the original charger?', 'Yes, it comes with the original Apple 20W USB-C charger and cable!', TRUE, '2024-10-27 09:00:00', '2024-10-27 09:15:00'),
+(1, 'user-2', 'What is the battery health percentage?', 'Battery health is at 98%', TRUE, '2024-10-27 09:30:00', '2024-10-27 09:45:00'),
+(2, 'user-1', 'Has this MacBook been repaired before?', 'No, never repaired. Still under AppleCare warranty until June 2025.', TRUE, '2024-10-26 16:00:00', '2024-10-26 16:30:00'),
+(3, 'user-2', 'Would you consider a laptop with RTX 4050 instead?', NULL, FALSE, '2024-10-25 12:00:00', NULL);
 
 -- ============================================
 
