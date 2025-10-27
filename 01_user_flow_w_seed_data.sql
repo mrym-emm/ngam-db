@@ -1,319 +1,107 @@
 -- ============================================
--- DATA FLOW DEMONSTRATION SCRIPT
--- Shows how data flows through the system
+-- NGAM-JE Seed Data
+-- Insert Statements
 -- ============================================
 
--- ============================================
--- STEP 1: SEED MINIMAL DATA
--- ============================================
-
--- Insert sample users
-INSERT INTO users (id, full_name, email, avatar_url, is_verified, seller_rating, rating_count, total_listings, completed_deals, created_at) VALUES
-('user-001', 'John Michael Smith', 'john@example.com', '/avatars/john.jpg', true, 4.8, 24, 12, 28, now()),
-('user-002', 'Sarah Johnson', 'sarah@example.com', '/avatars/sarah.jpg', true, 4.9, 47, 23, 56, now()),
-('user-003', 'Alex Chen', 'alex@example.com', '/avatars/alex.jpg', false, 4.2, 8, 5, 12, now());
-
--- Insert sample threads (communities)
-INSERT INTO threads (id, title, description, image_url, category, tags, comments_count, views_count, upvotes_count, current_tokens, goal_tokens, contributions_count, is_pinned, is_hot, time_ago, online_users, total_users) VALUES
-('thread-001', 'Pre-loved Apple', 'Latest smartphones, laptops, gaming gear and smart devices', 'https://images.unsplash.com/photo-1646621407385.jpg', 'apple-devices', ARRAY['apple', 'iphone', 'macbook'], 245, 18500, 892, 12400, 15000, 4200, true, true, '30m ago', 342, 8420),
-('thread-002', 'Pre-loved Luxurious Brands', 'Shoes, bags, jewelry, watches and style accessories', 'https://images.unsplash.com/photo-1629439612315.jpg', 'fashion', ARRAY['fashion', 'accessories'], 156, 9800, 423, 3200, 8000, 1850, false, false, '1h ago', 89, 3420);
-
--- Insert sample listings
-INSERT INTO listings (id, thread_id, user_id, title, description, price, location, timestamp, image_url, views_count, likes_count, category, expires_at, subscription_tier) VALUES
-('listing-001', 'thread-001', 'user-001', 'iPhone 14 Pro - 256GB Space Black', 'Excellent condition, barely used. Comes with original box and charger.', 3400.00, 'Kuala Lumpur', '2 hours ago', '/images/iphone14.jpg', 45, 12, 'Electronics', now() + interval '5 days', 'basic'),
-('listing-002', 'thread-001', 'user-002', 'MacBook Air M2 - Like New', 'Perfect for students and professionals. 8GB RAM, 256GB SSD.', 5100.00, 'Petaling Jaya', '4 hours ago', '/images/macbook.jpg', 67, 23, 'Electronics', now() + interval '29 days', 'pro');
-
--- Insert wanted listings (with budget instead of price)
-INSERT INTO listings (id, thread_id, user_id, title, description, budget, location, timestamp, image_url, views_count, likes_count, category, expires_at, subscription_tier) VALUES
-('listing-003', 'thread-001', 'user-003', 'Looking for: MacBook Pro M3 16-inch', 'Need for video editing work. Willing to pay good price for excellent condition.', 8500.00, 'Kuala Lumpur', '1 hour ago', '/images/wanted-macbook.jpg', 23, 5, 'Electronics', now() + interval '2 days', 'basic');
+-- Users (Complete - 2 users)
+INSERT INTO users (id, name, email, bio, location, avatar_url, joined_date) VALUES
+('user-1', 'Fitri', 'fitri@example.com', 'Love finding great deals on tech and collectibles!', 'Kuala Lumpur', '/avatars/fitri.jpg', '2024-01-15 10:00:00'),
+('user-2', 'Sani', 'sani@example.com', 'Passionate gamer and tech enthusiast. Always looking for the latest gear!', 'Petaling Jaya', '/avatars/sani.jpg', '2024-01-20 14:30:00');
 
 -- ============================================
--- STEP 2: DATA FLOW EXAMPLES
--- ============================================
 
--- FLOW 1: User browses threads (home page)
--- Query: Get all threads with their stats
-SELECT 
-  id, title, description, category, 
-  views_count, upvotes_count, is_hot, is_pinned,
-  online_users, total_users
-FROM threads
-ORDER BY is_pinned DESC, is_hot DESC, views_count DESC;
+-- Listings (Sample - 3 out of 72)
+-- NOTE: Import remaining 69 listings from CSV later
+INSERT INTO listings (id, user_id, title, description, price, category, condition, status, listing_type, image_url, is_matched, time_posted) VALUES
+(1, 'user-1', 'iPhone 14 Pro 256GB', 'Excellent condition, barely used. Comes with original box and accessories.', 3500.00, 'Electronics', 'Like New', 'active', 'sell', '/images/iphone14pro.jpg', FALSE, '2024-10-27 08:30:00'),
+(2, 'user-2', 'MacBook Air M2 2023', '13-inch, 8GB RAM, 256GB SSD. Perfect for students and professionals.', 4200.00, 'Electronics', 'Excellent', 'active', 'sell', '/images/macbook-air.jpg', TRUE, '2024-10-26 15:20:00'),
+(3, 'user-1', 'Looking for Gaming Laptop', 'Need a gaming laptop with RTX 4060 or better. Budget up to RM5000.', 5000.00, 'Electronics', NULL, 'active', 'buy', NULL, FALSE, '2024-10-25 11:45:00');
 
--- FLOW 2: User clicks on a thread to see listings
--- Query: Get all listings in a specific thread
-SELECT 
-  l.id, l.title, l.price, l.budget, l.location, l.timestamp,
-  l.views_count, l.likes_count, l.expires_at,
-  u.full_name as seller_name,
-  u.seller_rating,
-  u.is_verified as seller_verified
-FROM listings l
-JOIN users u ON l.user_id = u.id
-WHERE l.thread_id = 'thread-001'
-  AND l.expires_at > now()
-ORDER BY l.created_at DESC;
-
--- FLOW 3: AI Matching System generates matches
--- Insert a match between a buyer and seller
-INSERT INTO listing_matches (id, source_listing_id, matched_listing_id, match_score, match_quality, match_reasons, distance, price_compatible, location_compatible, category_compatible, status) VALUES
-('match-001', 'listing-003', 'listing-002', 88, 'good', 
-'[
-  {"type": "category", "label": "Same category", "matched": true, "details": "Electronics"},
-  {"type": "location", "label": "Nearby location", "matched": true, "details": "Petaling Jaya"},
-  {"type": "price", "label": "Close to budget", "matched": true, "details": "Within budget range"}
-]'::jsonb, 
-'3km away', true, true, true, 'new');
-
--- FLOW 4: User views their matches
--- Query: Get all matches for a user's listing
-SELECT 
-  m.id, m.match_score, m.match_quality, m.distance, m.status,
-  m.match_reasons,
-  ml.title as matched_title,
-  ml.price as matched_price,
-  ml.location as matched_location,
-  ml.image_url as matched_image,
-  u.full_name as seller_name,
-  u.seller_rating
-FROM listing_matches m
-JOIN listings ml ON m.matched_listing_id = ml.id
-JOIN users u ON ml.user_id = u.id
-WHERE m.source_listing_id = 'listing-003'
-ORDER BY m.match_score DESC;
-
--- FLOW 5: User contacts seller (message)
--- Insert a message
-INSERT INTO messages (id, sender_id, recipient_id, listing_id, content, product_info, is_read) VALUES
-('msg-001', 'user-003', 'user-002', 'listing-002', 
-'Hi! Is the MacBook Air still available? I saw it matched my requirements.',
-'{"title": "MacBook Air M2 - Like New", "price": "RM 5,100", "image": "/images/macbook.jpg"}'::jsonb,
-false);
-
--- FLOW 6: User checks their messages
--- Query: Get all conversations for a user
-SELECT 
-  m.id, m.content, m.is_read, m.created_at, m.product_info,
-  u.full_name as other_user_name,
-  u.avatar_url as other_user_avatar,
-  u.is_verified as other_user_verified,
-  CASE 
-    WHEN m.sender_id = 'user-002' THEN 'received'
-    ELSE 'sent'
-  END as message_type
-FROM messages m
-JOIN users u ON (
-  CASE 
-    WHEN m.sender_id = 'user-002' THEN m.sender_id = u.id
-    ELSE m.recipient_id = u.id
-  END
-)
-WHERE m.sender_id = 'user-002' OR m.recipient_id = 'user-002'
-ORDER BY m.created_at DESC;
-
--- FLOW 7: User asks question on listing (FAQ)
--- Insert question
-INSERT INTO listing_faqs (id, listing_id, user_id, question, description, is_answered_by_poster) VALUES
-('faq-001', 'listing-002', 'user-003', 'Does it come with original charger?', 'Want to make sure all accessories are included', false);
-
--- Seller answers the question
-INSERT INTO faq_answers (id, faq_id, parent_answer_id, user_id, user_name, text, is_accepted, likes_count, dislikes_count) VALUES
-('ans-001', 'faq-001', NULL, 'user-002', 'Sarah Johnson', 'Yes! Comes with original charger, box, and all accessories. Everything is included.', true, 12, 0);
-
--- Another user replies to the answer
-INSERT INTO faq_answers (id, faq_id, parent_answer_id, user_id, user_name, text, is_accepted, likes_count, dislikes_count) VALUES
-('ans-002', 'faq-001', 'ans-001', 'user-001', 'John Michael Smith', 'Great to know! Original accessories always add value.', false, 5, 0);
-
--- FLOW 8: Get FAQ with nested replies for listing page
--- Query: Get all FAQs with answers and nested replies
-WITH RECURSIVE faq_tree AS (
-  -- Get all questions
-  SELECT 
-    f.id as faq_id,
-    f.question,
-    f.description as question_description,
-    f.is_answered_by_poster,
-    a.id as answer_id,
-    a.parent_answer_id,
-    a.user_name,
-    a.text,
-    a.is_accepted,
-    a.likes_count,
-    a.dislikes_count,
-    1 as level
-  FROM listing_faqs f
-  LEFT JOIN faq_answers a ON f.id = a.faq_id AND a.parent_answer_id IS NULL
-  WHERE f.listing_id = 'listing-002'
-  
-  UNION ALL
-  
-  -- Get nested replies
-  SELECT 
-    ft.faq_id,
-    ft.question,
-    ft.question_description,
-    ft.is_answered_by_poster,
-    a.id,
-    a.parent_answer_id,
-    a.user_name,
-    a.text,
-    a.is_accepted,
-    a.likes_count,
-    a.dislikes_count,
-    ft.level + 1
-  FROM faq_tree ft
-  JOIN faq_answers a ON ft.answer_id = a.parent_answer_id
-)
-SELECT * FROM faq_tree ORDER BY faq_id, level, answer_id;
-
--- FLOW 9: AI Chat Session
--- User starts AI chat
-INSERT INTO ai_chat_sessions (id, user_id, title) VALUES
-(1, 'user-001', 'iPhone 14 Pro price comparison');
-
--- User sends message
-INSERT INTO ai_chat_messages (id, session_id, user_id, role, content, timestamp) VALUES
-('chat-msg-001', 1, 'user-001', 'user', 'Compare iPhone 14 Pro prices', now());
-
--- AI responds with tool call
-INSERT INTO ai_chat_messages (id, session_id, user_id, role, content, tool_calls, timestamp) VALUES
-('chat-msg-002', 1, 'user-001', 'assistant', 'Let me search for iPhone 14 Pro listings...', 
-'[{"name": "search_listings", "status": "completed", "result": "Found 12 listings"}]'::jsonb, 
-now());
-
--- AI provides results
-INSERT INTO ai_chat_messages (id, session_id, user_id, role, content, timestamp) VALUES
-('chat-msg-003', 1, 'user-001', 'assistant', 'Found several options. The best deal is RM3,400 from a verified seller in Kuala Lumpur.', now());
-
--- FLOW 10: Get user's AI chat history
--- Query: Get all chat sessions for sidebar
-SELECT 
-  s.id, s.title, 
-  COUNT(m.id) as message_count,
-  MAX(m.timestamp) as last_message_at,
-  CASE 
-    WHEN MAX(m.timestamp) > now() - interval '1 hour' THEN 'minutes ago'
-    WHEN MAX(m.timestamp) > now() - interval '1 day' THEN 'hours ago'
-    ELSE 'days ago'
-  END as time_ago
-FROM ai_chat_sessions s
-LEFT JOIN ai_chat_messages m ON s.id = m.session_id
-WHERE s.user_id = 'user-001'
-GROUP BY s.id, s.title
-ORDER BY MAX(m.timestamp) DESC;
-
--- FLOW 11: Track user activity
--- Insert activities
-INSERT INTO activities (user_id, activity_type, message, date) VALUES
-('user-001', 'sale', 'Sold an item: iPhone 14 Pro', '2 hours ago'),
-('user-002', 'purchase', 'Bought an item: Wireless Headphones', '1 day ago'),
-('user-003', 'achievement', 'Unlocked achievement: First Listing', '3 days ago');
-
--- Query: Get user activity feed
-SELECT 
-  activity_type, message, date
-FROM activities
-WHERE user_id = 'user-001'
-ORDER BY created_at DESC
-LIMIT 10;
-
--- FLOW 12: Track achievements
--- Insert achievements
-INSERT INTO achievements (id, user_id, label, description, icon, unlocked, unlocked_at) VALUES
-('achievement-001', 'user-001', 'First Sale', 'Complete your first successful sale', 'Trophy', true, 'Jan 15, 2024'),
-('achievement-002', 'user-001', 'Trusted Seller', 'Achieve a 4.5+ rating with 10+ reviews', 'Star', true, 'Feb 20, 2024'),
-('achievement-003', 'user-001', 'Community Helper', 'Help 10 users in the forums', 'Users', false, NULL);
-
--- Query: Get user's unlocked achievements
-SELECT 
-  label, description, icon, unlocked_at
-FROM achievements
-WHERE user_id = 'user-001' AND unlocked = true
-ORDER BY created_at DESC;
-
--- Query: Get achievement progress
-SELECT 
-  COUNT(*) FILTER (WHERE unlocked = true) as unlocked_count,
-  COUNT(*) as total_count,
-  ROUND(COUNT(*) FILTER (WHERE unlocked = true)::numeric / COUNT(*)::numeric * 100, 2) as completion_percentage
-FROM achievements
-WHERE user_id = 'user-001';
+-- To import remaining listings later:
+-- COPY listings(id, user_id, title, description, price, category, condition, status, listing_type, image_url, is_matched, time_posted)
+-- FROM '/path/to/listings.csv' DELIMITER ',' CSV HEADER;
 
 -- ============================================
--- STEP 3: COMMON DASHBOARD QUERIES
--- ============================================
 
--- User Dashboard: Get overview stats
-SELECT 
-  u.full_name,
-  u.seller_rating,
-  u.total_listings,
-  u.completed_deals,
-  COUNT(DISTINCT l.id) as active_listings,
-  COUNT(DISTINCT m.id) as pending_matches,
-  COUNT(DISTINCT msg.id) FILTER (WHERE msg.is_read = false) as unread_messages
-FROM users u
-LEFT JOIN listings l ON u.id = l.user_id AND l.expires_at > now()
-LEFT JOIN listing_matches m ON l.id = m.source_listing_id AND m.status = 'new'
-LEFT JOIN messages msg ON u.id = msg.recipient_id AND msg.is_read = false
-WHERE u.id = 'user-001'
-GROUP BY u.id, u.full_name, u.seller_rating, u.total_listings, u.completed_deals;
+-- Tags (Sample - 3 tags)
+-- NOTE: Import remaining tags from CSV later
+INSERT INTO tags (listing_id, tag_name) VALUES
+(1, 'electronics'),
+(1, 'smartphone'),
+(1, 'apple');
 
--- Trending Threads: Get hot communities
-SELECT 
-  id, title, description, category,
-  views_count, upvotes_count, online_users,
-  is_hot, is_pinned
-FROM threads
-WHERE is_hot = true OR is_pinned = true
-ORDER BY is_pinned DESC, upvotes_count DESC
-LIMIT 5;
-
--- Recent Listings: Get latest items in category
-SELECT 
-  l.id, l.title, l.price, l.location, l.timestamp,
-  u.full_name as seller_name,
-  u.seller_rating,
-  u.is_verified
-FROM listings l
-JOIN users u ON l.user_id = u.id
-WHERE l.thread_id = 'thread-001' 
-  AND l.expires_at > now()
-ORDER BY l.created_at DESC
-LIMIT 10;
+-- To import remaining tags later:
+-- COPY tags(listing_id, tag_name)
+-- FROM '/path/to/tags.csv' DELIMITER ',' CSV HEADER;
 
 -- ============================================
--- STEP 4: ANALYTICS QUERIES
+
+-- Matches (Complete - 3 matched listings for testing)
+INSERT INTO matches (buy_listing_id, sell_listing_id, buyer_id, seller_id, match_score, status, matched_at) VALUES
+(10, 2, 'user-1', 'user-2', 95.50, 'pending', '2024-10-27 09:15:00'),
+(12, 4, 'user-1', 'user-2', 88.25, 'pending', '2024-10-26 16:45:00'),
+(15, 6, 'user-1', 'user-2', 92.00, 'pending', '2024-10-25 13:30:00');
+
 -- ============================================
 
--- Most active sellers
-SELECT 
-  u.full_name,
-  u.seller_rating,
-  COUNT(l.id) as total_listings,
-  AVG(l.views_count) as avg_views,
-  SUM(l.likes_count) as total_likes
-FROM users u
-JOIN listings l ON u.id = l.user_id
-GROUP BY u.id, u.full_name, u.seller_rating
-ORDER BY total_listings DESC
-LIMIT 10;
+-- Threads (Sample - 3 out of many)
+-- NOTE: Import remaining threads from CSV later
+INSERT INTO threads (id, listing_id, participant_1_id, participant_2_id, last_message, last_message_time, unread_count) VALUES
+('thread-1', 1, 'user-1', 'user-2', 'Is the iPhone still available?', '2024-10-27 10:30:00', 1),
+('thread-2', 2, 'user-2', 'user-1', 'Can we meet tomorrow?', '2024-10-26 18:00:00', 0),
+('thread-3', 3, 'user-1', 'user-2', 'I have a laptop that might interest you', '2024-10-25 14:20:00', 2);
 
--- Popular categories
-SELECT 
-  category,
-  COUNT(*) as listing_count,
-  AVG(price) as avg_price,
-  SUM(views_count) as total_views
-FROM listings
-WHERE expires_at > now()
-GROUP BY category
-ORDER BY listing_count DESC;
+-- To import remaining threads later:
+-- COPY threads(id, listing_id, participant_1_id, participant_2_id, last_message, last_message_time, unread_count)
+-- FROM '/path/to/threads.csv' DELIMITER ',' CSV HEADER;
 
--- Match success rate
-SELECT 
-  status,
-  COUNT(*) as count,
-  ROUND(COUNT(*)::numeric / SUM(COUNT(*)) OVER () * 100, 2) as percentage
-FROM listing_matches
-GROUP BY status;
+-- ============================================
+
+-- Messages (Sample - 5 messages across threads)
+-- NOTE: Import remaining messages from CSV later
+INSERT INTO messages (thread_id, sender_id, content, is_read, sent_at) VALUES
+('thread-1', 'user-2', 'Is the iPhone still available?', TRUE, '2024-10-27 10:30:00'),
+('thread-1', 'user-1', 'Yes it is! Are you interested?', TRUE, '2024-10-27 10:35:00'),
+('thread-2', 'user-1', 'Can we meet tomorrow?', TRUE, '2024-10-26 18:00:00'),
+('thread-2', 'user-2', 'Sure, what time works for you?', TRUE, '2024-10-26 18:15:00'),
+('thread-3', 'user-2', 'I have a laptop that might interest you', FALSE, '2024-10-25 14:20:00');
+
+-- To import remaining messages later:
+-- COPY messages(thread_id, sender_id, content, is_read, sent_at)
+-- FROM '/path/to/messages.csv' DELIMITER ',' CSV HEADER;
+
+-- ============================================
+
+-- Achievements (Complete - 2 achievements)
+INSERT INTO achievements (id, user_id, title, description, icon, earned_date) VALUES
+('ach-1', 'user-1', 'First Listing', 'Created your first listing on the platform', 'trophy', '2024-01-15 11:00:00'),
+('ach-2', 'user-2', 'Early Adopter', 'Joined the platform in its first month', 'star', '2024-01-20 15:00:00');
+
+-- ============================================
+
+-- Activities (Complete - 4 sample activities)
+INSERT INTO activities (user_id, activity_type, title, description, related_listing_id, timestamp) VALUES
+('user-1', 'listing_created', 'Listed iPhone 14 Pro', 'You created a new listing for iPhone 14 Pro 256GB', 1, '2024-10-27 08:30:00'),
+('user-2', 'listing_created', 'Listed MacBook Air', 'You created a new listing for MacBook Air M2 2023', 2, '2024-10-26 15:20:00'),
+('user-1', 'match_found', 'Match Found!', 'Your buy request matched with a MacBook Air listing', 2, '2024-10-27 09:15:00'),
+('user-2', 'offer_received', 'New Offer', 'Someone is interested in your MacBook Air', 2, '2024-10-27 10:00:00');
+
+-- ============================================
+
+-- FAQs (Complete - 4 FAQs)
+INSERT INTO faqs (category, question, answer, order_index) VALUES
+('Getting Started', 'How do I create my first listing?', 'Click on the "Create Listing" button in the sidebar, fill out the form with your item details, and submit!', 1),
+('Getting Started', 'What is the difference between buy and sell listings?', 'Sell listings are items you want to sell. Buy listings are requests for items you want to purchase. Our smart matching system connects compatible listings!', 2),
+('Safety', 'How do I stay safe when meeting buyers/sellers?', 'Always meet in public places, bring a friend, and trust your instincts. Never share personal financial information.', 3),
+('Payments', 'How does payment work?', 'NGAM-JE currently facilitates connections. Payment arrangements are made directly between buyers and sellers. We recommend secure payment methods.', 4);
+
+-- ============================================
+
+-- Chat History (Complete - 2 chat entries)
+INSERT INTO chat_history (id, user_id, other_user_id, last_message, timestamp, is_read, avatar_url) VALUES
+('chat-1', 'user-1', 'user-2', 'Can we meet tomorrow?', '2024-10-26 18:00:00', TRUE, '/avatars/sani.jpg'),
+('chat-2', 'user-2', 'user-1', 'Yes it is! Are you interested?', '2024-10-27 10:35:00', FALSE, '/avatars/fitri.jpg');
+
+-- ============================================
+-- End of Seed Data
+-- ============================================
