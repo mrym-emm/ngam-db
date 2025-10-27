@@ -22,229 +22,317 @@ DROP TABLE IF EXISTS users CASCADE;
 -- STEP 2: CREATE TABLES
 -- ============================================
 
--- 1. USERS
+ ============================================================================
+-- NGAM-JE DATABASE SCHEMA
+-- Based on mock data structure from frontend refactoring
+-- Designed for 2-user platform (Fitri and Sani)
+-- ============================================================================
+
+-- ============================================================================
+-- USERS TABLE
+-- ============================================================================
 CREATE TABLE users (
-  id TEXT PRIMARY KEY,
-  full_name TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  avatar_url TEXT,
-  is_verified BOOLEAN DEFAULT false,
-  seller_rating DECIMAL(3,2) DEFAULT 0.00,
-  rating_count INTEGER DEFAULT 0,
-  total_listings INTEGER DEFAULT 0,
-  completed_deals INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    verified BOOLEAN DEFAULT FALSE,
+    rating DECIMAL(3,2) DEFAULT 0.00,
+    rating_count INT DEFAULT 0,
+    total_listings INT DEFAULT 0,
+    completed_deals INT DEFAULT 0,
+    avatar_url TEXT,
+    joined_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_rating ON users(seller_rating);
-
--- 2. THREADS (Communities/Categories)
-CREATE TABLE threads (
-  id TEXT PRIMARY KEY,
-  title TEXT NOT NULL,
-  description TEXT,
-  image_url TEXT,
-  category TEXT NOT NULL,
-  tags TEXT[],
-  comments_count INTEGER DEFAULT 0,
-  views_count INTEGER DEFAULT 0,
-  upvotes_count INTEGER DEFAULT 0,
-  current_tokens INTEGER DEFAULT 0,
-  goal_tokens INTEGER DEFAULT 0,
-  contributions_count INTEGER DEFAULT 0,
-  is_pinned BOOLEAN DEFAULT false,
-  is_hot BOOLEAN DEFAULT false,
-  time_ago TEXT,
-  online_users INTEGER DEFAULT 0,
-  total_users INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE INDEX idx_threads_category ON threads(category);
-CREATE INDEX idx_threads_is_hot ON threads(is_hot);
-CREATE INDEX idx_threads_is_pinned ON threads(is_pinned);
-
--- 3. LISTINGS
+-- ============================================================================
+-- LISTINGS TABLE (Unified - both Sale and Wanted)
+-- ============================================================================
 CREATE TABLE listings (
-  id TEXT PRIMARY KEY,
-  thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  description TEXT NOT NULL,
-  price DECIMAL(10,2),
-  budget DECIMAL(10,2),
-  location TEXT NOT NULL,
-  timestamp TEXT NOT NULL,
-  image_url TEXT,
-  views_count INTEGER DEFAULT 0,
-  likes_count INTEGER DEFAULT 0,
-  category TEXT NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  subscription_tier TEXT DEFAULT 'basic' CHECK (subscription_tier IN ('basic', 'pro', 'enterprise')),
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+    id VARCHAR(50) PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    subtitle VARCHAR(255),
+    description TEXT NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'MYR',
+
+    -- Foreign key to users
+    user_id VARCHAR(50) NOT NULL,
+
+    -- Denormalized seller info (for quick display, but user_id is source of truth)
+    seller_name VARCHAR(100) NOT NULL,
+    seller_location VARCHAR(100) NOT NULL,
+    seller_verified BOOLEAN DEFAULT FALSE,
+
+    -- Media
+    image_url TEXT,
+    gallery JSON,  -- Array of image URLs
+
+    -- Category and type
+    category VARCHAR(50) NOT NULL,
+    listing_type ENUM('sale', 'wanted') NOT NULL,
+
+    -- Metadata
+    tags JSON,  -- Array of tags
+    views INT DEFAULT 0,
+    protected BOOLEAN DEFAULT FALSE,
+
+    -- Timestamps
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP,
+
+    -- Indexes
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_category (category),
+    INDEX idx_listing_type (listing_type),
+    INDEX idx_created_at (created_at)
 );
 
-CREATE INDEX idx_listings_thread_id ON listings(thread_id);
-CREATE INDEX idx_listings_user_id ON listings(user_id);
-CREATE INDEX idx_listings_category ON listings(category);
-CREATE INDEX idx_listings_expires_at ON listings(expires_at);
+-- ============================================================================
+-- THREADS/COMMUNITIES TABLE
+-- ============================================================================
+CREATE TABLE threads (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    image_url TEXT,
+    comments INT DEFAULT 0,
+    views INT DEFAULT 0,
+    upvotes INT DEFAULT 0,
+    current_tokens INT DEFAULT 0,
+    goal_tokens INT DEFAULT 0,
+    is_pinned BOOLEAN DEFAULT FALSE,
+    is_hot BOOLEAN DEFAULT FALSE,
+    contributions INT DEFAULT 0,
+    category VARCHAR(50) NOT NULL,
+    online_users INT DEFAULT 0,
+    total_users INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
--- 4. LISTING MATCHES
-CREATE TABLE listing_matches (
-  id TEXT PRIMARY KEY,
-  source_listing_id TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
-  matched_listing_id TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
-  match_score INTEGER NOT NULL CHECK (match_score >= 0 AND match_score <= 100),
-  match_quality TEXT NOT NULL CHECK (match_quality IN ('excellent', 'good', 'possible')),
-  match_reasons JSONB NOT NULL,
-  distance TEXT,
-  price_compatible BOOLEAN DEFAULT false,
-  location_compatible BOOLEAN DEFAULT false,
-  category_compatible BOOLEAN DEFAULT false,
-  status TEXT DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'dismissed')),
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+    INDEX idx_category (category),
+    INDEX idx_is_pinned (is_pinned),
+    INDEX idx_is_hot (is_hot)
 );
 
-CREATE INDEX idx_listing_matches_source ON listing_matches(source_listing_id);
-CREATE INDEX idx_listing_matches_matched ON listing_matches(matched_listing_id);
-CREATE INDEX idx_listing_matches_score ON listing_matches(match_score DESC);
-CREATE INDEX idx_listing_matches_status ON listing_matches(status);
-CREATE UNIQUE INDEX idx_listing_matches_unique ON listing_matches(source_listing_id, matched_listing_id);
-
--- 5. LISTING FAQS (Questions)
-CREATE TABLE listing_faqs (
-  id TEXT PRIMARY KEY,
-  listing_id TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  question TEXT NOT NULL,
-  description TEXT,
-  is_answered_by_poster BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+-- ============================================================================
+-- THREAD TAGS TABLE (Many-to-Many relationship)
+-- ============================================================================
+CREATE TABLE thread_tags (
+    thread_id INT NOT NULL,
+    tag VARCHAR(50) NOT NULL,
+    PRIMARY KEY (thread_id, tag),
+    FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE,
+    INDEX idx_tag (tag)
 );
 
-CREATE INDEX idx_listing_faqs_listing ON listing_faqs(listing_id);
-CREATE INDEX idx_listing_faqs_user ON listing_faqs(user_id);
+-- ============================================================================
+-- MESSAGES/CONVERSATIONS TABLE
+-- ============================================================================
+CREATE TABLE conversations (
+    id VARCHAR(50) PRIMARY KEY,
+    user1_id VARCHAR(50) NOT NULL,
+    user2_id VARCHAR(50) NOT NULL,
+    listing_id VARCHAR(50),  -- Optional: if conversation is about a specific listing
+    last_message TEXT,
+    last_message_time TIMESTAMP,
+    unread_count_user1 INT DEFAULT 0,
+    unread_count_user2 INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
--- 6. FAQ ANSWERS (Including Replies)
-CREATE TABLE faq_answers (
-  id TEXT PRIMARY KEY,
-  faq_id TEXT NOT NULL REFERENCES listing_faqs(id) ON DELETE CASCADE,
-  parent_answer_id TEXT REFERENCES faq_answers(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  user_name TEXT NOT NULL,
-  text TEXT NOT NULL,
-  is_accepted BOOLEAN DEFAULT false,
-  likes_count INTEGER DEFAULT 0,
-  dislikes_count INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+    FOREIGN KEY (user1_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (user2_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE SET NULL,
+    INDEX idx_user1 (user1_id),
+    INDEX idx_user2 (user2_id),
+    INDEX idx_listing (listing_id)
 );
 
-CREATE INDEX idx_faq_answers_faq ON faq_answers(faq_id);
-CREATE INDEX idx_faq_answers_parent ON faq_answers(parent_answer_id);
-CREATE INDEX idx_faq_answers_user ON faq_answers(user_id);
-
--- 7. AI CHAT SESSIONS
-CREATE TABLE ai_chat_sessions (
-  id BIGSERIAL PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE INDEX idx_ai_chat_sessions_user ON ai_chat_sessions(user_id);
-
--- 8. AI CHAT MESSAGES
-CREATE TABLE ai_chat_messages (
-  id TEXT PRIMARY KEY,
-  session_id BIGINT NOT NULL REFERENCES ai_chat_sessions(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
-  content TEXT NOT NULL,
-  tool_calls JSONB,
-  timestamp TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE INDEX idx_ai_chat_messages_session ON ai_chat_messages(session_id);
-CREATE INDEX idx_ai_chat_messages_timestamp ON ai_chat_messages(timestamp);
-
--- 9. MESSAGES (User to User)
+-- ============================================================================
+-- MESSAGES TABLE
+-- ============================================================================
 CREATE TABLE messages (
-  id TEXT PRIMARY KEY,
-  sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  listing_id TEXT REFERENCES listings(id) ON DELETE SET NULL,
-  content TEXT NOT NULL,
-  is_read BOOLEAN DEFAULT false,
-  product_info JSONB,
-  created_at TIMESTAMPTZ DEFAULT now()
+    id VARCHAR(50) PRIMARY KEY,
+    conversation_id VARCHAR(50) NOT NULL,
+    sender_id VARCHAR(50) NOT NULL,
+    content TEXT NOT NULL,
+    product_info JSON,  -- Optional: product card info
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_conversation (conversation_id),
+    INDEX idx_created_at (created_at)
 );
 
-CREATE INDEX idx_messages_recipient_read ON messages(recipient_id, is_read);
-CREATE INDEX idx_messages_sender ON messages(sender_id);
-CREATE INDEX idx_messages_listing ON messages(listing_id);
-CREATE INDEX idx_messages_created ON messages(created_at DESC);
-
--- 10. ACTIVITIES
-CREATE TABLE activities (
-  id BIGSERIAL PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  activity_type TEXT NOT NULL CHECK (activity_type IN ('sale', 'purchase', 'achievement', 'alert')),
-  message TEXT NOT NULL,
-  date TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE INDEX idx_activities_user ON activities(user_id);
-CREATE INDEX idx_activities_type ON activities(activity_type);
-CREATE INDEX idx_activities_created ON activities(created_at DESC);
-
--- 11. ACHIEVEMENTS
+-- ============================================================================
+-- ACHIEVEMENTS TABLE
+-- ============================================================================
 CREATE TABLE achievements (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  label TEXT NOT NULL,
-  description TEXT NOT NULL,
-  icon TEXT NOT NULL,
-  unlocked BOOLEAN DEFAULT false,
-  unlocked_at TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+    id VARCHAR(50) PRIMARY KEY,
+    label VARCHAR(100) NOT NULL,
+    description TEXT,
+    icon VARCHAR(50),  -- Icon name from lucide-react
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_achievements_user ON achievements(user_id);
-CREATE INDEX idx_achievements_unlocked ON achievements(unlocked);
+-- ============================================================================
+-- USER ACHIEVEMENTS TABLE (Many-to-Many)
+-- ============================================================================
+CREATE TABLE user_achievements (
+    user_id VARCHAR(50) NOT NULL,
+    achievement_id VARCHAR(50) NOT NULL,
+    unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, achievement_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (achievement_id) REFERENCES achievements(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_unlocked_at (unlocked_at)
+);
 
--- ============================================
--- HELPER VIEWS (Optional - for easier queries)
--- ============================================
+-- ============================================================================
+-- ACTIVITIES TABLE (User activity log)
+-- ============================================================================
+CREATE TABLE activities (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id VARCHAR(50) NOT NULL,
+    type ENUM('sale', 'purchase', 'achievement', 'alert') NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
--- View for listing with owner info
-CREATE VIEW listings_with_owner AS
-SELECT 
-  l.*,
-  u.full_name as owner_name,
-  u.avatar_url as owner_avatar,
-  u.seller_rating as owner_rating,
-  u.is_verified as owner_verified
-FROM listings l
-JOIN users u ON l.user_id = u.id;
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_type (type),
+    INDEX idx_created_at (created_at)
+);
 
--- View for complete match information
-CREATE VIEW matches_with_listings AS
-SELECT 
-  m.*,
-  sl.title as source_title,
-  sl.price as source_price,
-  ml.title as matched_title,
-  ml.price as matched_price,
-  ml.image_url as matched_image
-FROM listing_matches m
-JOIN listings sl ON m.source_listing_id = sl.id
-JOIN listings ml ON m.matched_listing_id = ml.id;
+-- ============================================================================
+-- LISTING MATCHES TABLE
+-- ============================================================================
+CREATE TABLE listing_matches (
+    id VARCHAR(50) PRIMARY KEY,
+    your_listing_id VARCHAR(50) NOT NULL,
+    matched_listing_id VARCHAR(50) NOT NULL,
+    match_score INT NOT NULL,  -- 0-100
+    match_quality ENUM('excellent', 'good', 'possible') NOT NULL,
+    status ENUM('new', 'contacted', 'dismissed') DEFAULT 'new',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (your_listing_id) REFERENCES listings(id) ON DELETE CASCADE,
+    FOREIGN KEY (matched_listing_id) REFERENCES listings(id) ON DELETE CASCADE,
+    INDEX idx_your_listing (your_listing_id),
+    INDEX idx_matched_listing (matched_listing_id),
+    INDEX idx_match_score (match_score)
+);
+
+-- ============================================================================
+-- LISTING MATCH REASONS TABLE (Many match reasons per match)
+-- ============================================================================
+CREATE TABLE listing_match_reasons (
+    match_id VARCHAR(50) NOT NULL,
+    type ENUM('category', 'price', 'location', 'keyword', 'timing') NOT NULL,
+    label VARCHAR(100) NOT NULL,
+    matched BOOLEAN NOT NULL,
+    details TEXT,
+    PRIMARY KEY (match_id, type),
+    FOREIGN KEY (match_id) REFERENCES listing_matches(id) ON DELETE CASCADE
+);
+
+-- ============================================================================
+-- FAQ TABLE
+-- ============================================================================
+CREATE TABLE listing_faqs (
+    id VARCHAR(50) PRIMARY KEY,
+    listing_id VARCHAR(50) NOT NULL,
+    question TEXT NOT NULL,
+    description TEXT,
+    is_answered_by_poster BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE,
+    INDEX idx_listing_id (listing_id)
+);
+
+-- ============================================================================
+-- FAQ ANSWERS TABLE
+-- ============================================================================
+CREATE TABLE faq_answers (
+    id VARCHAR(50) PRIMARY KEY,
+    question_id VARCHAR(50) NOT NULL,
+    user_id VARCHAR(50) NOT NULL,
+    text TEXT NOT NULL,
+    is_accepted BOOLEAN DEFAULT FALSE,
+    likes INT DEFAULT 0,
+    dislikes INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (question_id) REFERENCES listing_faqs(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_question_id (question_id)
+);
+
+-- ============================================================================
+-- FAQ ANSWER REPLIES TABLE (Nested replies)
+-- ============================================================================
+CREATE TABLE faq_replies (
+    id VARCHAR(50) PRIMARY KEY,
+    answer_id VARCHAR(50) NOT NULL,
+    parent_reply_id VARCHAR(50),  -- NULL if top-level reply, otherwise parent reply
+    user_id VARCHAR(50) NOT NULL,
+    text TEXT NOT NULL,
+    likes INT DEFAULT 0,
+    dislikes INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (answer_id) REFERENCES faq_answers(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_reply_id) REFERENCES faq_replies(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_answer_id (answer_id),
+    INDEX idx_parent_reply_id (parent_reply_id)
+);
+
+-- ============================================================================
+-- CHAT HISTORY TABLE (AI chat sessions)
+-- ============================================================================
+CREATE TABLE chat_history (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_created_at (created_at)
+);
+
+-- ============================================================================
+-- CHAT MESSAGES TABLE
+-- ============================================================================
+CREATE TABLE chat_messages (
+    id VARCHAR(50) PRIMARY KEY,
+    chat_id INT NOT NULL,
+    role ENUM('user', 'assistant') NOT NULL,
+    content TEXT NOT NULL,
+    tool_calls JSON,  -- Array of tool call objects
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (chat_id) REFERENCES chat_history(id) ON DELETE CASCADE,
+    INDEX idx_chat_id (chat_id),
+    INDEX idx_created_at (created_at)
+);
+
+-- ============================================================================
+-- SEED DATA FOR 2 USERS (Fitri and Sani)
+-- ============================================================================
+INSERT INTO users (id, name, email, password_hash, verified, rating, rating_count, total_listings, completed_deals, joined_date) VALUES
+('user-1', 'Fitri', 'fitri@example.com', 'password1', TRUE, 4.8, 32, 36, 45, '2024-01-15'),
+('user-2', 'Sani', 'sani@example.com', 'password2', TRUE, 4.9, 28, 36, 38, '2023-12-10');
+
+-- Note: Listings, threads, and other data would be migrated from mock-all-data-used.ts
+
