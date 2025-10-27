@@ -1,6 +1,6 @@
+
 -- ============================================
--- NGAM-JE Database Schema
--- PostgreSQL / MySQL Compatible
+-- Ngam DB schema
 -- ============================================
 
 -- Users Table
@@ -12,6 +12,14 @@ CREATE TABLE users (
     bio TEXT,
     location VARCHAR(100),
     avatar_url TEXT,
+    
+    -- ADDED: Missing fields from frontend User interface
+    verified BOOLEAN DEFAULT FALSE,
+    rating DECIMAL(3, 2) DEFAULT 0.0,
+    rating_count INTEGER DEFAULT 0,
+    total_listings INTEGER DEFAULT 0,
+    completed_deals INTEGER DEFAULT 0,
+    
     joined_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -24,16 +32,28 @@ CREATE INDEX idx_users_email ON users(email);
 -- Listings Table
 -- Core marketplace listings (buy and sell)
 CREATE TABLE listings (
-    id SERIAL PRIMARY KEY,
+    -- FIXED: Changed from SERIAL to VARCHAR to match frontend string IDs like "sale-53"
+    id VARCHAR(50) PRIMARY KEY,
     user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     price DECIMAL(10, 2) NOT NULL,
+    
+    -- ADDED: Missing currency field
+    currency VARCHAR(3) DEFAULT 'MYR',
+    
     category VARCHAR(100) NOT NULL,
     condition VARCHAR(50),
     status VARCHAR(50) DEFAULT 'active', -- active, matched, sold, expired
-    listing_type VARCHAR(20) NOT NULL, -- 'buy' or 'sell'
+    listing_type VARCHAR(20) NOT NULL, -- 'sale' or 'wanted'
     image_url TEXT,
+    
+    -- ADDED: Gallery field for multiple images (JSON array for PostgreSQL)
+    gallery JSONB,
+    
+    -- ADDED: Missing views field
+    views INTEGER DEFAULT 0,
+    
     is_matched BOOLEAN DEFAULT FALSE,
     time_posted TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -52,7 +72,8 @@ CREATE INDEX idx_listings_is_matched ON listings(is_matched);
 -- Stores listing tags for filtering/search
 CREATE TABLE tags (
     id SERIAL PRIMARY KEY,
-    listing_id INTEGER NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    -- FIXED: Changed listing_id to VARCHAR to match new listings.id type
+    listing_id VARCHAR(50) NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
     tag_name VARCHAR(50) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -66,8 +87,9 @@ CREATE INDEX idx_tags_name ON tags(tag_name);
 -- Tracks matched buy/sell listings
 CREATE TABLE matches (
     id SERIAL PRIMARY KEY,
-    buy_listing_id INTEGER NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
-    sell_listing_id INTEGER NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    -- FIXED: Changed to VARCHAR to match new listings.id type
+    buy_listing_id VARCHAR(50) NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    sell_listing_id VARCHAR(50) NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
     buyer_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     seller_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     match_score DECIMAL(5, 2), -- 0.00 to 100.00
@@ -88,12 +110,18 @@ CREATE INDEX idx_matches_status ON matches(status);
 -- Conversation threads between users
 CREATE TABLE threads (
     id VARCHAR(50) PRIMARY KEY,
-    listing_id INTEGER REFERENCES listings(id) ON DELETE SET NULL,
+    -- FIXED: Changed to VARCHAR to match new listings.id type
+    listing_id VARCHAR(50) REFERENCES listings(id) ON DELETE SET NULL,
     participant_1_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     participant_2_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     last_message TEXT,
     last_message_time TIMESTAMP,
     unread_count INTEGER DEFAULT 0,
+    
+    -- ADDED: Extra fields for MessagePreview compatibility
+    thread_type VARCHAR(50) DEFAULT 'product',
+    thread_status VARCHAR(20) DEFAULT 'active',
+    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -127,9 +155,15 @@ CREATE INDEX idx_messages_read ON messages(is_read);
 CREATE TABLE achievements (
     id VARCHAR(50) PRIMARY KEY,
     user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- NOTE: Frontend uses 'label' instead of 'title' - map accordingly in backend
     title VARCHAR(100) NOT NULL,
     description TEXT,
     icon VARCHAR(50),
+    
+    -- ADDED: unlocked status field
+    unlocked BOOLEAN DEFAULT FALSE,
+    
     earned_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -144,9 +178,14 @@ CREATE TABLE activities (
     id SERIAL PRIMARY KEY,
     user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     activity_type VARCHAR(50) NOT NULL, -- listing_created, offer_made, match_found, etc.
+    
+    -- NOTE: Frontend uses 'message' - map 'title' to 'message' in backend
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    related_listing_id INTEGER REFERENCES listings(id) ON DELETE SET NULL,
+    
+    -- FIXED: Changed to VARCHAR to match new listings.id type
+    related_listing_id VARCHAR(50) REFERENCES listings(id) ON DELETE SET NULL,
+    
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -158,10 +197,11 @@ CREATE INDEX idx_activities_timestamp ON activities(timestamp);
 -- ============================================
 
 -- FAQs Table
--- Frequently asked questions
+-- Frequently asked questions (item-specific)
 CREATE TABLE faqs (
     id SERIAL PRIMARY KEY,
-    listing_id INTEGER NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    -- FIXED: Changed to VARCHAR to match new listings.id type
+    listing_id VARCHAR(50) NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
     user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- who asked the question
     question TEXT NOT NULL,
     answer TEXT,
