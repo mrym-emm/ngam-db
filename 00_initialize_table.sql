@@ -161,15 +161,20 @@ CREATE INDEX idx_activities_timestamp ON activities(timestamp);
 -- Frequently asked questions
 CREATE TABLE faqs (
     id SERIAL PRIMARY KEY,
-    category VARCHAR(100) NOT NULL,
+    listing_id INTEGER NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- who asked the question
     question TEXT NOT NULL,
-    answer TEXT NOT NULL,
-    order_index INTEGER DEFAULT 0,
+    answer TEXT,
+    is_answered BOOLEAN DEFAULT FALSE,
+    asked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    answered_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_faqs_category ON faqs(category);
+CREATE INDEX idx_faqs_listing ON faqs(listing_id);
+CREATE INDEX idx_faqs_user ON faqs(user_id);
+CREATE INDEX idx_faqs_answered ON faqs(is_answered);
 
 -- ============================================
 
