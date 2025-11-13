@@ -16,7 +16,7 @@ INSERT INTO threads (
     updated_at
 ) VALUES
     ('Pre-loved Apple',
-    'Latest smartphones, laptops, gaming gear and smart devices.',
+    'Everything Apple. From pre-loved ipads to macbooks!',
     'https://images.unsplash.com/photo-1646621407385-528a18fbe004?q=80&w=2070&auto=format&fit=crop',
     'apple-devices',
     ARRAY['apple','iphone','macbook','trending'],
